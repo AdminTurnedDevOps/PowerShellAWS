@@ -1,4 +1,4 @@
-Function Upload-AWSVideo {
+Function Get-S3 {
     Param (
         [psobject]$AWSCredential = ((Get-AWSCredential -ListProfileDetail)[0] | Select -ExpandProperty ProfileName),
 
