@@ -1,8 +1,8 @@
-﻿Function Upload-AWSVideo {
+Function Upload-AWSVideo {
     Param (
         [psobject]$AWSCredential = ((Get-AWSCredential -ListProfileDetail)[0] | Select -ExpandProperty ProfileName),
 
-        [switch]$Expand = (Select -ExpandProperty CreationDate, BucketName)
+        [switch]$Expand = (Select-Object -ExpandProperty *)
     )
     begin {
         Write-Output "Starting: $($MyInvocation.MyCommand.Name)"
