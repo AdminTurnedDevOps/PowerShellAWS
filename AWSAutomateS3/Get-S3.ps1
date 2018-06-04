@@ -38,3 +38,81 @@ Function Get-S3 {
     end {
     }    
 }#Function
+
+##############################################################################################################################
+
+Function UploadTo-S3Bucket {
+    [cmdletbinding(SupportsShouldProcess = $true, ConfirmImpact = 'medium')]
+    Param (
+        [Parameter()]
+        [psobject]$AWSCredential = ((Get-AWSCredential -ListProfileDetail)[0] | Select -ExpandProperty ProfileName),
+
+        [Parameter(ParameterSetName = 'NewBucket',
+            HelpMessage = 'Please do not use capitals on your S3 bucket name. The cmdlet will fail')]
+        [string]$newS3Bucket,
+
+        [Parameter(ParameterSetName = 'NewBucket')]
+        [string]$Region = 'us-east-2',
+
+        [switch]$bucketEncryption = (Set-S3BucketEncryption -BucketName $newS3Bucket)
+    )
+    begin {}
+
+    process {
+        try {
+            if ($pscmdlet.ShouldProcess($newS3Bucket)) {
+                $newBucketPARAMS = @{'BucketName' = $newS3Bucket; 'Region' = $Region; 'ProfileName' = $AWSCredential; 'PublicReadOnly' = $true}
+                $newBucket = New-S3Bucket @newBucketPARAMS
+
+                $testBucket = Test-S3Bucket -BucketName $newS3Bucket -ProfileName $AWSCredential
+                Write-Output 'Testing S3 bucket'
+                Start-Sleep 5
+                if ($testBucket -like 'true') {
+                    Write-Output 'Test complete'
+                }
+
+                else {
+                    Write-Warning 'Bucket test: FAIL. Please review configuration'
+                }
+
+                if (-not($testBucket)) {
+                    $tryAgain = Read-Host "Bucket creation not successful. Would you like to try again? 1 for yes 2 for no"
+                    switch ($tryAgain) {
+                        '1' {
+                            New-S3Bucket -BucketName $newS3Bucket -Region $Region -ProfileName (Read-Host "Please enter profile name") -PublicReadOnly: $true 
+                        }
+
+                        '2' {
+                            Write-Output 'Exiting. Goodbye'
+                            Pause
+                            Break
+                        }
+
+                    }#Switch
+                }#secondif       
+            }#ifPSCMDLET
+
+            elseif (-not($newS3Bucket)) {
+                Write-Output 'No new bucket being created. Moving on...'
+                Pause
+            }
+        }
+
+        catch {
+            [console]::WriteLine('Testing connection to specified region')
+            $testConnectionAWS = Test-Connection "$Region.console.aws.amazon.com"
+
+            if($testConnectionAWS) {
+                [console]::WriteLine('Connection to region: Successful')
+            }
+
+            else {
+                Write-Warning 'Connection to region: UNSUCCESSFUL'
+            }
+            [console]::WriteLine("Current AWS Profiles available: $(Get-AWSCredential -ListProfileDetail | Select @{Name='Profile' ;expression={$_.ProfileName}} -ExpandProperty ProfileName)")
+            Write-Output "Your current profile being used is $AWSCredential. Would you like to try another to create the S3 bucket?"
+
+        }
+    }
+    end {}
+}
