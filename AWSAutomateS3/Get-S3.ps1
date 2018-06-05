@@ -1,8 +1,9 @@
 Function Get-S3 {
+    [cmdletbinding()]
     Param (
         [psobject]$AWSCredential = ((Get-AWSCredential -ListProfileDetail)[0] | Select -ExpandProperty ProfileName),
 
-        [switch]$Expand = (Select-Object -ExpandProperty *)
+        [switch]$Expand = (Select -ExpandProperty *)
     )
     begin {
         Write-Output "Starting: $($MyInvocation.MyCommand.Name)"
@@ -16,9 +17,11 @@ Function Get-S3 {
         try {
             [console]::WriteLine('Below are your existing buckets')
             $getS3Bucket = Get-S3Bucket -ProfileName $AWSCredential
+            $getS3ACL = Get-S3ACL -ProfileName $AWSCredential
             Foreach ($S3Bucket in $getS3Bucket) {
                 $getS3BucketOBJECT = [pscustomobject]::AsPSObject( @{'Name' = $S3Bucket.BucketName; 'Created' = $S3Bucket.CreationDate; } )
                 $getS3BucketOBJECT
+                $getS3BucketOBJECT | Add-Member -type NoteProperty -name 'GetACL' -value {Get-S3ACL -BucketName $getS3Bucket -ProfileName $awscredential}
             }
 
             if ($getS3BucketOBJECT -like $null) {
@@ -39,7 +42,7 @@ Function Get-S3 {
     }    
 }#Function
 
-##############################################################################################################################
+####################################################################################################################################################################################################################
 
 Function UploadTo-S3Bucket {
     [cmdletbinding(SupportsShouldProcess = $true, ConfirmImpact = 'medium')]
@@ -53,6 +56,14 @@ Function UploadTo-S3Bucket {
 
         [Parameter(ParameterSetName = 'NewBucket')]
         [string]$Region = 'us-east-2',
+
+        [Parameter(ParameterSetName='NoNewBucket',
+            HelpMessage = 'Please enter the bucket name to save the new S3 object')]
+        [string]$bucketName,
+
+        [Parameter(ParameterSetName = 'NoNewBucket',
+            HelpMessage = 'Please enter a file name in your S3 bucket')]
+        [string]$fileName,
 
         [switch]$bucketEncryption = (Set-S3BucketEncryption -BucketName $newS3Bucket)
     )
@@ -79,11 +90,17 @@ Function UploadTo-S3Bucket {
                     $tryAgain = Read-Host "Bucket creation not successful. Would you like to try again? 1 for yes 2 for no"
                     switch ($tryAgain) {
                         '1' {
-                            New-S3Bucket -BucketName $newS3Bucket -Region $Region -ProfileName (Read-Host "Please enter profile name") -PublicReadOnly: $true 
+                            $newS3BucketPARAMS = @{
+                                'BucketName'=$newS3Bucket
+                                'Region'=$Region
+                                'ProfileName'=(Read-Host "Please enter profile name")
+                                'PublicReadOnly'=$true
+                            }
+                            New-S3Bucket @newS3BucketPARAMS
                         }
 
                         '2' {
-                            Write-Output 'Exiting. Goodbye'
+                            Write-Output 'Moving on...'
                             Pause
                             Break
                         }
@@ -96,7 +113,12 @@ Function UploadTo-S3Bucket {
                 Write-Output 'No new bucket being created. Moving on...'
                 Pause
             }
-        }
+            
+            $WritetoS3PARAMS = @{'BucketName'=$bucketName; 'ProfileName'=$AWSCredential; 'Key'=((Get-Childitem $fileName | Where {$_.LastWriteTime} | Sort-Object -Descending))[0]; 'PublicReadOnly'=$true}
+            Write-S3Object @WritetoS3PARAMS
+
+
+        }#Try
 
         catch {
             [console]::WriteLine('Testing connection to specified region')
@@ -112,7 +134,7 @@ Function UploadTo-S3Bucket {
             [console]::WriteLine("Current AWS Profiles available: $(Get-AWSCredential -ListProfileDetail | Select @{Name='Profile' ;expression={$_.ProfileName}} -ExpandProperty ProfileName)")
             Write-Output "Your current profile being used is $AWSCredential. Would you like to try another to create the S3 bucket?"
 
-        }
-    }
+        }#Catch
+    }#Process
     end {}
 }
