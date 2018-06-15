@@ -42,8 +42,7 @@ Function New-AWSKeyPair {
         $RSAPrivateKeyLocation = "C:\users\$env:username\Desktop"
     )
     begin {
-        $testPath = Test-Path $RSAPrivateKeyLocation
-    
+        $testPath = Test-Path $RSAPrivateKeyLocation    
         if (-not($testPath)) {
             Write-Warning 'Path for RSA private key was unreachable. Please try again'
             Break
@@ -51,8 +50,7 @@ Function New-AWSKeyPair {
 
         else {
             Write-Output "Test to $RSAPrivateKeyLocation : Successful"
-        }
-    
+        }    
     }
     process {
         try {
@@ -61,7 +59,6 @@ Function New-AWSKeyPair {
                 New-EC2KeyPair @PARAMS | fl | Out-File "$RSAPrivateKeyLocation\RSAKEY.txt"
             }           
         }
-
         catch {
             $_
             Throw
