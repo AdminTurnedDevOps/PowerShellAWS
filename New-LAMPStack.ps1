@@ -38,7 +38,6 @@ Function New-LAMPStack {
         $stackPolicyURL,
     
         [Parameter(ParameterSetName = 'STACK')]
-        [Parameter()]
         [ValidateSet('ap-northeast-1',
             'ap-northeast-2',
             'ap-south-1',
